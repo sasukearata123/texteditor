@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Content Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--dark-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .editor-container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .toolbar {
+            width: 280px;
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .toolbar-section {
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            padding: 15px;
+        }
+
+        .toolbar-section h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-section h3 i {
+            font-size: 1.2rem;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .editor-content {
+            flex: 1;
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .editor-area {
+            min-height: 100%;
+            outline: none;
+            padding: 15px;
+        }
+
+        .editor-area:focus {
+            box-shadow: 0 0 0 2px var(--accent-color) inset;
+        }
+
+        .placeholder {
+            color: #adb5bd;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            pointer-events: none;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .export-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .pdf-btn {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .docx-btn {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 14px rgba(0,0,0,0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            padding: 30px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 500;
+        }
+
+        .form-control {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .img-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            margin: 10px 0;
+        }
+
+        .img-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .img-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 4px;
+            padding: 5px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .img-container:hover .img-controls {
+            opacity: 1;
+        }
+
+        .img-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .img-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f3f5;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 992px) {
+            .editor-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .toolbar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-edit"></i> Modern Content Editor</h1>
+            <p class="subtitle">Create professional documents with images, charts, and spreadsheets</p>
+        </header>
+
+        <div class="editor-container">
+            <div class="toolbar">
+                <div class="toolbar-section">
+                    <h3><i class="fas fa-text-height"></i> Text Formatting</h3>
+                    <div class="btn-group">
+                        <button class="btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                        <button class="btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                        <button class="btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                        <button class="btn" data-command="justifyLeft" title="Align Left"><i class="fas fa-align-left"></i></button>
+                        <button class="btn" data-command="justifyCenter" title="Center"><i class="fas fa-align-center"></i></button>
+                        <button class="btn" data-command="justifyRight" title="Align Right"><i class="fas fa-align-right"></i></button>
+                        <button class="btn" data-command="insertUnorderedList" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                        <button class="btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Font Size</label>
+                        <select id="fontSize" class="form-control">
+                            <option value="1">Small</option>
+                            <option value="3" selected>Normal</option>
+                            <option value="5">Large</option>
+                            <option value="7">X-Large</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Text Color</label>
+                        <input type="color" id="textColor" class="form-control" value="#000000">
+                    </div>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3><i class="fas fa-image"></i> Images</h3>
+                    <button id="insertImage" class="btn" style="width: 100%;">
+                        <i class="fas fa-plus"></i> Insert Image
+                    </button>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Image Size</label>
+                        <select id="imageSize" class="form-control">
+                            <option value="small">Small</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="large">Large</option>
+                            <option value="full">Full Width</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image Alignment</label>
+                        <select id="imageAlign" class="form-control">
+                            <option value="left">Left</option>
+                            <option value="center" selected>Center</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3><i class="fas fa-chart-bar"></i> Charts</h3>
+                    <button id="insertBarChart" class="btn" style="width: 100%;">
+                        <i class="fas fa-chart-bar"></i> Insert Bar Chart
+                    </button>
+                    <button id="insertLineChart" class="btn" style="width: 100%; margin-top: 10px;">
+                        <i class="fas fa-chart-line"></i> Insert Line Chart
+                    </button>
+                    <button id="insertPieChart" class="btn" style="width: 100%; margin-top: 10px;">
+                        <i class="fas fa-chart-pie"></i> Insert Pie Chart
+                    </button>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3><i class="fas fa-table"></i> Spreadsheets</h3>
+                    <button id="insertTable" class="btn" style="width: 100%;">
+                        <i class="fas fa-plus"></i> Insert Table
+                    </button>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Table Size</label>
+                        <div class="btn-group">
+                            <input type="number" id="tableRows" class="form-control" placeholder="Rows" min="1" value="3">
+                            <input type="number" id="tableCols" class="form-control" placeholder="Columns" min="1" value="3">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-content">
+                
+                <div class="editor-area" contenteditable="true" id="editor"></div>
+            </div>
+        </div>
+
+        <div class="export-actions">
+            <button class="export-btn pdf-btn" id="exportPdf">
+                <i class="fas fa-file-pdf"></i> Export as PDF
+            </button>
+            <button class="export-btn docx-btn" id="exportDocx">
+                <i class="fas fa-file-word"></i> Export as DOCX
+            </button>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal" id="imageModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="modal-header">
+                <h2><i class="fas fa-image"></i> Insert Image</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="text" id="imageUrl" class="form-control" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label>Or upload from computer</label>
+                    <input type="file" id="imageUpload" class="form-control" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Image Preview</label>
+                    <div id="imagePreview" style="width: 100%; height: 200px; border: 1px dashed #ced4da; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
+                        <p>Image preview will appear here</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancelImage">Cancel</button>
+                <button class="btn" id="insertImageBtn" style="background: var(--primary-color); color: white;">Insert Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Modal -->
+    <div class="modal" id="chartModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="modal-header">
+                <h2><i class="fas fa-chart-bar"></i> Insert Chart</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Chart Title</label>
+                    <input type="text" id="chartTitle" class="form-control" placeholder="Sales Data">
+                </div>
+                <div class="form-group">
+                    <label>Chart Type</label>
+                    <select id="chartType" class="form-control">
+                        <option value="bar">Bar Chart</option>
+                        <option value="line">Line Chart</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Data Labels (comma separated)</label>
+                    <input type="text" id="chartLabels" class="form-control" placeholder="Jan, Feb, Mar">
+                </div>
+                <div class="form-group">
+                    <label>Data Values (comma separated)</label>
+                    <input type="text" id="chartData" class="form-control" placeholder="10, 20, 30">
+                </div>
+                <div class="form-group">
+                    <label>Chart Preview</label>
+                    <canvas id="chartPreview" height="200"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancelChart">Cancel</button>
+                <button class="btn" id="insertChartBtn" style="background: var(--primary-color); color: white;">Insert Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const editor = document.getElementById('editor');
+        const textColor = document.getElementById('textColor');
+        const fontSize = document.getElementById('fontSize');
+        const imageModal = document.getElementById('imageModal');
+        const chartModal = document.getElementById('chartModal');
+        const exportPdfBtn = document.getElementById('exportPdf');
+        const exportDocxBtn = document.getElementById('exportDocx');
+        
+        // Formatting buttons
+        document.querySelectorAll('.btn[data-command]').forEach(button => {
+            button.addEventListener('click', () => {
+                const command = button.getAttribute('data-command');
+                document.execCommand(command, false, null);
+                editor.focus();
+            });
+        });
+        
+        // Text color change
+        textColor.addEventListener('input', () => {
+            document.execCommand('foreColor', false, textColor.value);
+            editor.focus();
+        });
+        
+        // Font size change
+        fontSize.addEventListener('change', () => {
+            document.execCommand('fontSize', false, fontSize.value);
+            editor.focus();
+        });
+        
+        // Image handling
+        document.getElementById('insertImage').addEventListener('click', () => {
+            imageModal.style.display = 'flex';
+        });
+        
+        document.querySelectorAll('.close-modal, #cancelImage').forEach(btn => {
+            btn.addEventListener('click', () => {
+                imageModal.style.display = 'none';
+            });
+        });
+        
+        document.getElementById('insertImageBtn').addEventListener('click', () => {
+            const url = document.getElementById('imageUrl').value;
+            if (url) {
+                insertImage(url);
+                imageModal.style.display = 'none';
+            }
+        });
+        
+        function insertImage(url) {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'img-container';
+            imgContainer.style.display = 'inline-block';
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Inserted Image';
+            
+            // Set image size
+            const size = document.getElementById('imageSize').value;
+            switch(size) {
+                case 'small': img.style.width = '200px'; break;
+                case 'medium': img.style.width = '400px'; break;
+                case 'large': img.style.width = '600px'; break;
+                case 'full': img.style.width = '100%'; break;
+            }
+            
+            // Set alignment
+            const align = document.getElementById('imageAlign').value;
+            imgContainer.style.textAlign = align;
+            
+            // Add image controls
+            const controls = document.createElement('div');
+            controls.className = 'img-controls';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'img-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.onclick = function() {
+                imgContainer.remove();
+            };
+            
+            controls.appendChild(deleteBtn);
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(controls);
+            
+            range.insertNode(imgContainer);
+            editor.focus();
+        }
+        
+        // Chart handling
+        document.getElementById('insertBarChart').addEventListener('click', () => {
+            openChartModal('bar');
+        });
+        
+        document.getElementById('insertLineChart').addEventListener('click', () => {
+            openChartModal('line');
+        });
+        
+        document.getElementById('insertPieChart').addEventListener('click', () => {
+            openChartModal('pie');
+        });
+        
+        function openChartModal(type) {
+            document.getElementById('chartType').value = type;
+            document.getElementById('chartTitle').value = 'Sample Chart';
+            document.getElementById('chartLabels').value = 'Jan, Feb, Mar, Apr';
+            document.getElementById('chartData').value = '30, 50, 25, 40';
+            
+            updateChartPreview();
+            chartModal.style.display = 'flex';
+        }
+        
+        document.querySelectorAll('.close-modal, #cancelChart').forEach(btn => {
+            btn.addEventListener('click', () => {
+                chartModal.style.display = 'none';
+            });
+        });
+        
+        document.getElementById('chartType').addEventListener('change', updateChartPreview);
+        document.getElementById('chartTitle').addEventListener('input', updateChartPreview);
+        document.getElementById('chartLabels').addEventListener('input', updateChartPreview);
+        document.getElementById('chartData').addEventListener('input', updateChartPreview);
+        
+        function updateChartPreview() {
+            const ctx = document.getElementById('chartPreview').getContext('2d');
+            const title = document.getElementById('chartTitle').value || 'Sample Chart';
+            const type = document.getElementById('chartType').value;
+            const labels = document.getElementById('chartLabels').value.split(',').map(l => l.trim());
+            const data = document.getElementById('chartData').value.split(',').map(d => parseInt(d.trim()) || 0);
+            
+            // Destroy existing chart if it exists
+            if (window.previewChart) {
+                window.previewChart.destroy();
+            }
+            
+            // Create new chart
+            window.previewChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title,
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)',
+                            'rgba(255, 159, 64, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        }
+                    }
+                }
+            });
+        }
+        
+        document.getElementById('insertChartBtn').addEventListener('click', () => {
+            const title = document.getElementById('chartTitle').value || 'Chart';
+            const type = document.getElementById('chartType').value;
+            const labels = document.getElementById('chartLabels').value.split(',').map(l => l.trim());
+            const data = document.getElementById('chartData').value.split(',').map(d => parseInt(d.trim()) || 0);
+            
+            insertChart(title, type, labels, data);
+            chartModal.style.display = 'none';
+        });
+        
+        function insertChart(title, type, labels, data) {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+            
+            const canvas = document.createElement('canvas');
+            container.appendChild(canvas);
+            
+            // Create the actual chart
+            new Chart(canvas, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title,
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)',
+                            'rgba(255, 159, 64, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        }
+                    }
+                }
+            });
+            
+            range.insertNode(container);
+            editor.focus();
+        }
+        
+        // Table handling
+        document.getElementById('insertTable').addEventListener('click', () => {
+            const rows = parseInt(document.getElementById('tableRows').value) || 3;
+            const cols = parseInt(document.getElementById('tableCols').value) || 3;
+            
+            insertTable(rows, cols);
+        });
+        
+        function insertTable(rows, cols) {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            
+            const table = document.createElement('table');
+            
+            // Create header row
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            for (let i = 0; i < cols; i++) {
+                const th = document.createElement('th');
+                th.textContent = `Header ${i+1}`;
+                headerRow.appendChild(th);
+            }
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Create body rows
+            const tbody = document.createElement('tbody');
+            for (let i = 0; i < rows; i++) {
+                const row = document.createElement('tr');
+                for (let j = 0; j < cols; j++) {
+                    const td = document.createElement('td');
+                    td.textContent = `Row ${i+1}, Col ${j+1}`;
+                    row.appendChild(td);
+                }
+                tbody.appendChild(row);
+            }
+            table.appendChild(tbody);
+            
+            range.insertNode(table);
+            editor.focus();
+        }
+        
+        // Export functionality
+        exportPdfBtn.addEventListener('click', () => {
+            alert('PDF export would be implemented with jsPDF and html2canvas in a real application');
+        });
+        
+        exportDocxBtn.addEventListener('click', () => {
+            alert('DOCX export would be implemented with docx.js in a real application');
+        });
+        
+        // Initialize the editor with some content
+        window.onload = () => {
+            editor.innerHTML = `
+                <h2>Welcome to the Modern Content Editor</h2>
+                <p>This is a powerful editor that allows you to create professional documents with:</p>
+                <ul>
+                    <li>Rich text formatting</li>
+                    <li>Images with editing capabilities</li>
+                    <li>Interactive charts</li>
+                    <li>Excel-like spreadsheets</li>
+                </ul>
+                <p>Try inserting your own content using the toolbar on the left!</p>
+            `;
+        };
+    </script>
+</body>
+</html>
